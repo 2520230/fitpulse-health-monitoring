@@ -1,6 +1,49 @@
 # ⚡ FitPulse – Personal Health & Workout Monitoring System
 
-A full-stack web application to track your fitness activities, health metrics, and wellness goals.
+A health and workout monitoring system available in **two flavours**:
+
+| | Standalone (no-database) | Full-stack |
+|---|---|---|
+| **Setup** | Open one HTML file | Node + MongoDB required |
+| **Storage** | Browser `localStorage` | MongoDB Atlas / local |
+| **Dependencies** | Chart.js CDN only | React, Express, Mongoose… |
+| **Best for** | Quick start / beginners | Production / multi-user |
+
+---
+
+## 🚀 Quick Start — Standalone (No Database)
+
+The simplest way to run FitPulse is to open **`fitpulse-app.html`** directly in your browser — no installation, no server, no database required.
+
+```bash
+# Clone the repo (or just download fitpulse-app.html)
+git clone https://github.com/2520230/fitpulse-health-monitoring.git
+
+# Open the file in your browser
+open fitpulse-health-monitoring/fitpulse-app.html      # macOS
+start fitpulse-health-monitoring/fitpulse-app.html     # Windows
+xdg-open fitpulse-health-monitoring/fitpulse-app.html  # Linux
+```
+
+All data is saved automatically to your browser's **localStorage** — it persists across page refreshes and browser restarts.
+
+### Standalone Features
+
+| Feature | Description |
+|---------|-------------|
+| 🏠 **Dashboard** | Live stats, weekly chart, recent workouts, active goal progress |
+| 💪 **Workouts** | Add / edit / delete workouts with type, duration, and calories |
+| ❤️ **Heart Rate** | Simulated live BPM feed with zone detection + history log |
+| 🎯 **Goals** | Create and track fitness goals with visual progress bars |
+| 📈 **Statistics** | Bar, line, and doughnut charts (calories, duration, type breakdown, HR trend) |
+| 💾 **localStorage** | Zero-config persistence — no backend or database needed |
+| 📱 **Responsive** | Works on desktop and mobile |
+
+---
+
+## Full-Stack Version
+
+A React 18 + Express 4 + MongoDB application with authentication, JWT sessions, and multi-user support.
 
 ## ✨ Features
 

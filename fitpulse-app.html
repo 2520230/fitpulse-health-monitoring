@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitPulse – Health & Workout Monitor</title>
+  <!-- Chart.js for progress visualisations -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & base ────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      min-height: 100vh;
+    }
+    a { text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select, textarea { font-family: inherit; }
+
+    /* ── Top navigation ──────────────────────────────── */
+    .nav {
+      background: #1d4ed8;
+      color: white;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    }
+    .nav-brand {
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding: 1rem 0.5rem 1rem 0;
+      margin-right: 0.5rem;
+      white-space: nowrap;
+    }
+    .nav-links { display: flex; flex-wrap: wrap; gap: 0.25rem; flex: 1; }
+    .nav-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.78);
+      padding: 0.55rem 0.9rem;
+      border-radius: 0.4rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-btn:hover  { background: rgba(255,255,255,0.12); color: white; }
+    .nav-btn.active { background: rgba(255,255,255,0.22); color: white; }
+    .nav-user { font-size: 0.8rem; opacity: 0.85; margin-left: auto; padding: 0.5rem 0; white-space: nowrap; }
+
+    /* ── Layout ──────────────────────────────────────── */
+    .page-wrapper { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── Cards ───────────────────────────────────────── */
+    .card {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+    }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Grid helpers ────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+    .grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; }
+    .gap-1  { gap: 1rem; }
+    .mb-1   { margin-bottom: 1rem; }
+    .mb-1h  { margin-bottom: 1.5rem; }
+    .flex   { display: flex; }
+    .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .flex-end { display: flex; justify-content: flex-end; }
+    .flex-wrap { flex-wrap: wrap; }
+    .flex-col { flex-direction: column; }
+
+    /* ── Stat cards ──────────────────────────────────── */
+    .stat-card {
+      background: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 1.25rem;
+      border-left: 4px solid #1d4ed8;
+    }
+    .stat-label { font-size: 0.78rem; color: #6b7280; margin-bottom: 0.2rem; }
+    .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+    .stat-unit  { font-size: 0.72rem; color: #9ca3af; margin-top: 0.15rem; }
+    .stat-icon  { font-size: 1.8rem; }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.55rem 1.1rem;
+      border: none;
+      border-radius: 0.45rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: opacity 0.15s, filter 0.15s;
+    }
+    .btn:hover { filter: brightness(0.92); }
+    .btn-primary { background: #1d4ed8; color: white; }
+    .btn-danger  { background: #ef4444; color: white; }
+    .btn-success { background: #10b981; color: white; }
+    .btn-ghost   { background: #f3f4f6; color: #374151; }
+    .btn-sm      { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+    /* ── Forms ───────────────────────────────────────── */
+    .form-group { margin-bottom: 0.85rem; }
+    .form-label { display: block; font-size: 0.8rem; font-weight: 500; color: #374151; margin-bottom: 0.3rem; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.4rem;
+      font-size: 0.875rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: #1d4ed8;
+      box-shadow: 0 0 0 3px rgba(29,78,216,0.12);
+    }
+    .form-textarea { min-height: 80px; resize: vertical; }
+
+    /* ── Modal ───────────────────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 2rem 1rem;
+      overflow-y: auto;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      position: relative;
+    }
+    .modal-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .modal-close {
+      position: absolute; top: 1rem; right: 1rem;
+      background: #f3f4f6; border: none;
+      width: 2rem; height: 2rem;
+      border-radius: 50%; font-size: 1.1rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+
+    /* ── Progress bar ────────────────────────────────── */
+    .progress-bar-bg { background: #e5e7eb; border-radius: 9999px; height: 8px; overflow: hidden; }
+    .progress-bar    { height: 100%; border-radius: 9999px; transition: width 0.4s; }
+
+    /* ── Heart rate live display ─────────────────────── */
+    .hr-display {
+      text-align: center;
+      padding: 2rem;
+    }
+    .hr-big {
+      font-size: 5rem;
+      font-weight: 800;
+      color: #ef4444;
+      line-height: 1;
+    }
+    .hr-bpm { font-size: 1rem; color: #6b7280; margin-top: 0.25rem; }
+    .hr-zone {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 0.3rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .zone-rest     { background: #dbeafe; color: #1d4ed8; }
+    .zone-light    { background: #d1fae5; color: #065f46; }
+    .zone-moderate { background: #fef3c7; color: #92400e; }
+    .zone-intense  { background: #fee2e2; color: #991b1b; }
+    .zone-max      { background: #ef4444; color: white; }
+    .pulse-dot {
+      width: 14px; height: 14px;
+      background: #ef4444;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 0.4rem;
+      animation: pulse-anim 1s ease-in-out infinite;
+    }
+    @keyframes pulse-anim {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.45); opacity: 0.6; }
+    }
+
+    /* ── Workout list item ───────────────────────────── */
+    .workout-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      background: #f9fafb;
+      border-radius: 0.5rem;
+      border-left: 4px solid #1d4ed8;
+    }
+    .workout-title { font-weight: 500; font-size: 0.9rem; }
+    .workout-meta  { font-size: 0.75rem; color: #6b7280; margin-top: 0.15rem; }
+    .workout-actions { display: flex; gap: 0.4rem; }
+
+    /* ── Badge / tag ─────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .badge-blue    { background: #dbeafe; color: #1d4ed8; }
+    .badge-green   { background: #d1fae5; color: #065f46; }
+    .badge-orange  { background: #fef3c7; color: #92400e; }
+    .badge-purple  { background: #ede9fe; color: #5b21b6; }
+    .badge-red     { background: #fee2e2; color: #991b1b; }
+
+    /* ── Alert / toast ───────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: #111827; color: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.3s, opacity 0.3s;
+      z-index: 999;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* ── Empty state ─────────────────────────────────── */
+    .empty { text-align: center; padding: 2.5rem; color: #9ca3af; font-size: 0.9rem; }
+
+    /* ── Divider ─────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 1rem 0; }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (max-width: 700px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .grid-auto { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+      .hr-big { font-size: 3.5rem; }
+    }
+    @media (max-width: 480px) {
+      .nav-brand { font-size: 1rem; }
+      .page-wrapper { padding: 1rem 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     NAVIGATION
+══════════════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-brand">⚡ FitPulse</div>
+  <div class="nav-links">
+    <button class="nav-btn active" onclick="showSection('dashboard')">🏠 Dashboard</button>
+    <button class="nav-btn" onclick="showSection('workouts')">💪 Workouts</button>
+    <button class="nav-btn" onclick="showSection('heartrate')">❤️ Heart Rate</button>
+    <button class="nav-btn" onclick="showSection('goals')">🎯 Goals</button>
+    <button class="nav-btn" onclick="showSection('stats')">📈 Statistics</button>
+  </div>
+  <div class="nav-user" id="nav-user-name">FitPulse User</div>
+</nav>
+
+<div class="page-wrapper">
+
+<!-- ══════════════════════════════════════════════════
+     DASHBOARD SECTION
+══════════════════════════════════════════════════ -->
+<section id="section-dashboard" class="section active">
+  <div class="flex-between mb-1h">
+    <div>
+      <h1 style="font-size:1.6rem;font-weight:700;">Welcome back! 👋</h1>
+      <p style="color:#6b7280;margin-top:0.2rem;" id="dash-date"></p>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="showSection('workouts');openWorkoutModal()">+ Log Workout</button>
+  </div>
+
+  <!-- Today's stats -->
+  <div class="grid-auto mb-1h" id="dash-stats">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="grid-2 mb-1h">
+    <!-- Recent Workouts -->
+    <div class="card">
+      <div class="flex-between mb-1">
+        <span class="card-title" style="margin:0">Recent Workouts</span>
+        <button class="btn btn-ghost btn-sm" onclick="showSection('workouts')">View all →</button>
+      </div>
+      <div id="dash-recent-workouts"></div>
+    </div>
+
+    <!-- Active Goals -->
+    <div class="card">
+      <div class="flex-between mb-1">
+        <span class="card-title" style="margin:0">Active Goals</span>
+        <button class="btn btn-ghost btn-sm" onclick="showSection('goals')">View all →</button>
+      </div>
+      <div id="dash-active-goals"></div>
+    </div>
+  </div>
+
+  <!-- Weekly Summary Chart -->
+  <div class="card">
+    <div class="card-title">Weekly Workout Summary</div>
+    <canvas id="dash-chart" height="90"></canvas>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     WORKOUTS SECTION
+══════════════════════════════════════════════════ -->
+<section id="section-workouts" class="section">
+  <div class="flex-between mb-1h">
+    <h1 style="font-size:1.4rem;font-weight:700;">💪 Workouts</h1>
+    <button class="btn btn-primary" onclick="openWorkoutModal()">+ Log Workout</button>
+  </div>
+
+  <!-- Filter -->
+  <div class="card mb-1">
+    <div class="flex" style="gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+      <div style="flex:1;min-width:140px;">
+        <label class="form-label">Filter by type</label>
+        <select class="form-select" id="workout-filter-type" onchange="renderWorkouts()">
+          <option value="">All types</option>
+          <option>Cardio</option><option>Strength</option><option>Yoga</option>
+          <option>HIIT</option><option>Swimming</option><option>Cycling</option>
+          <option>Running</option><option>Walking</option><option>Other</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:140px;">
+        <label class="form-label">Filter by date range</label>
+        <select class="form-select" id="workout-filter-range" onchange="renderWorkouts()">
+          <option value="">All time</option>
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="workout-list"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     HEART RATE SECTION
+══════════════════════════════════════════════════ -->
+<section id="section-heartrate" class="section">
+  <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;">❤️ Heart Rate Monitor</h1>
+
+  <div class="grid-2 mb-1h">
+    <!-- Live display -->
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <div class="hr-display">
+        <div style="margin-bottom:0.5rem;"><span class="pulse-dot"></span><span style="font-size:0.9rem;color:#6b7280;">Live BPM</span></div>
+        <div class="hr-big" id="hr-value">72</div>
+        <div class="hr-bpm">beats per minute</div>
+        <div id="hr-zone" class="hr-zone zone-rest">Resting</div>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;margin-top:0.75rem;">
+        <button class="btn btn-ghost btn-sm" id="hr-sim-btn" onclick="toggleHrSimulation()">▶ Start Simulation</button>
+        <button class="btn btn-primary btn-sm" onclick="logCurrentHeartRate()">💾 Log Reading</button>
+      </div>
+    </div>
+
+    <!-- Zone info -->
+    <div class="card">
+      <div class="card-title">Heart Rate Zones</div>
+      <div style="display:flex;flex-direction:column;gap:0.6rem;" id="hr-zone-bars">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Live chart -->
+  <div class="card mb-1h">
+    <div class="card-title">Live Heart Rate (last 60 seconds)</div>
+    <canvas id="hr-chart" height="110"></canvas>
+  </div>
+
+  <!-- History -->
+  <div class="card">
+    <div class="card-title">Heart Rate History</div>
+    <div id="hr-history"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     GOALS SECTION
+══════════════════════════════════════════════════ -->
+<section id="section-goals" class="section">
+  <div class="flex-between mb-1h">
+    <h1 style="font-size:1.4rem;font-weight:700;">🎯 Goals</h1>
+    <button class="btn btn-primary" onclick="openGoalModal()">+ Add Goal</button>
+  </div>
+  <div id="goal-list"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     STATISTICS SECTION
+══════════════════════════════════════════════════ -->
+<section id="section-stats" class="section">
+  <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:1.5rem;">📈 Statistics</h1>
+
+  <!-- Summary cards -->
+  <div class="grid-4 mb-1h" id="stats-summary"></div>
+
+  <!-- Charts row -->
+  <div class="grid-2 mb-1h">
+    <div class="card">
+      <div class="card-title">Calories Burned (Last 7 Days)</div>
+      <canvas id="stats-cal-chart" height="160"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Workout Duration (Last 7 Days)</div>
+      <canvas id="stats-dur-chart" height="160"></canvas>
+    </div>
+  </div>
+
+  <div class="card mb-1h">
+    <div class="card-title">Workout Frequency by Type</div>
+    <div style="max-width:340px;margin:0 auto;">
+      <canvas id="stats-type-chart" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Heart Rate Trend (Last 14 Logs)</div>
+    <canvas id="stats-hr-chart" height="120"></canvas>
+  </div>
+</section>
+
+</div><!-- end page-wrapper -->
+
+<!-- ══════════════════════════════════════════════════
+     WORKOUT MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="workout-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('workout-modal')">✕</button>
+    <div class="modal-title" id="workout-modal-title">Log Workout</div>
+    <input type="hidden" id="workout-edit-id" />
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input class="form-input" id="w-title" placeholder="e.g. Morning Run" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type *</label>
+        <select class="form-select" id="w-type">
+          <option>Cardio</option><option>Strength</option><option>Yoga</option>
+          <option>HIIT</option><option>Swimming</option><option>Cycling</option>
+          <option>Running</option><option>Walking</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="form-group">
+        <label class="form-label">Duration (min) *</label>
+        <input class="form-input" id="w-duration" type="number" min="1" max="600" placeholder="30" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Calories burned</label>
+        <input class="form-input" id="w-calories" type="number" min="0" placeholder="250" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="w-date" type="date" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notes</label>
+      <textarea class="form-textarea" id="w-notes" placeholder="How did it go?"></textarea>
+    </div>
+    <div class="flex-end" style="gap:0.5rem;">
+      <button class="btn btn-ghost" onclick="closeModal('workout-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveWorkout()">Save Workout</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     GOAL MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="goal-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('goal-modal')">✕</button>
+    <div class="modal-title" id="goal-modal-title">Add Goal</div>
+    <input type="hidden" id="goal-edit-id" />
+    <div class="form-group">
+      <label class="form-label">Goal Title *</label>
+      <input class="form-input" id="g-title" placeholder="e.g. Run 5km without stopping" />
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="g-type">
+          <option value="weight_loss">Weight Loss</option>
+          <option value="muscle_gain">Muscle Gain</option>
+          <option value="cardio">Cardio Endurance</option>
+          <option value="steps">Daily Steps</option>
+          <option value="workouts">Workout Count</option>
+          <option value="calories">Calories Burned</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Unit</label>
+        <input class="form-input" id="g-unit" placeholder="e.g. kg, workouts, steps" />
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Target value *</label>
+        <input class="form-input" id="g-target" type="number" min="0" placeholder="10" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current value</label>
+        <input class="form-input" id="g-current" type="number" min="0" placeholder="0" />
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Start date</label>
+        <input class="form-input" id="g-start" type="date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Target date</label>
+        <input class="form-input" id="g-deadline" type="date" />
+      </div>
+    </div>
+    <div class="flex-end" style="gap:0.5rem;">
+      <button class="btn btn-ghost" onclick="closeModal('goal-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGoal()">Save Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     UPDATE GOAL PROGRESS MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="goal-progress-modal">
+  <div class="modal" style="max-width:360px;">
+    <button class="modal-close" onclick="closeModal('goal-progress-modal')">✕</button>
+    <div class="modal-title">Update Progress</div>
+    <input type="hidden" id="gp-id" />
+    <div class="form-group">
+      <label class="form-label">Current Value</label>
+      <input class="form-input" id="gp-current" type="number" min="0" />
+    </div>
+    <div class="flex-end" style="gap:0.5rem;">
+      <button class="btn btn-ghost" onclick="closeModal('goal-progress-modal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveGoalProgress()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════ -->
+<script>
+/* ──────────────────────────────────────────────────
+   STORAGE HELPERS
+────────────────────────────────────────────────── */
+const LS = {
+  get(key, fallback = []) {
+    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+    catch { return fallback; }
+  },
+  set(key, value) { localStorage.setItem(key, JSON.stringify(value)); },
+};
+
+const KEYS = {
+  workouts : 'fitpulse_workouts',
+  goals    : 'fitpulse_goals',
+  hrLogs   : 'fitpulse_hr_logs',
+};
+
+/* ──────────────────────────────────────────────────
+   UTILITY
+────────────────────────────────────────────────── */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+function toast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+/* ──────────────────────────────────────────────────
+   NAVIGATION
+────────────────────────────────────────────────── */
+let currentSection = 'dashboard';
+const navBtns = document.querySelectorAll('.nav-btn');
+
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  navBtns.forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick').includes("'" + name + "'"));
+  });
+  currentSection = name;
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'workouts')  renderWorkouts();
+  if (name === 'heartrate') renderHeartRate();
+  if (name === 'goals')     renderGoals();
+  if (name === 'stats')     renderStats();
+}
+
+/* ──────────────────────────────────────────────────
+   MODALS
+────────────────────────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modal on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+  backdrop.addEventListener('click', e => {
+    if (e.target === backdrop) backdrop.classList.remove('open');
+  });
+});
+
+/* ──────────────────────────────────────────────────
+   WORKOUTS
+────────────────────────────────────────────────── */
+function openWorkoutModal(id = null) {
+  document.getElementById('workout-edit-id').value = id || '';
+  document.getElementById('workout-modal-title').textContent = id ? 'Edit Workout' : 'Log Workout';
+  if (id) {
+    const w = LS.get(KEYS.workouts).find(x => x.id === id);
+    if (w) {
+      document.getElementById('w-title').value    = w.title;
+      document.getElementById('w-type').value     = w.type;
+      document.getElementById('w-duration').value = w.duration;
+      document.getElementById('w-calories').value = w.calories || '';
+      document.getElementById('w-date').value     = w.date;
+      document.getElementById('w-notes').value    = w.notes || '';
+    }
+  } else {
+    ['w-title','w-duration','w-calories','w-notes'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('w-type').value = 'Cardio';
+    document.getElementById('w-date').value = today();
+  }
+  openModal('workout-modal');
+}
+
+function saveWorkout() {
+  const title    = document.getElementById('w-title').value.trim();
+  const duration = parseInt(document.getElementById('w-duration').value);
+  if (!title)    { toast('⚠️ Please enter a title'); return; }
+  if (!duration || duration < 1) { toast('⚠️ Please enter a valid duration'); return; }
+
+  const workouts = LS.get(KEYS.workouts);
+  const editId   = document.getElementById('workout-edit-id').value;
+
+  const entry = {
+    id      : editId || uid(),
+    title,
+    type     : document.getElementById('w-type').value,
+    duration,
+    calories : parseInt(document.getElementById('w-calories').value) || 0,
+    date     : document.getElementById('w-date').value || today(),
+    notes    : document.getElementById('w-notes').value.trim(),
+    createdAt: editId ? (workouts.find(w => w.id === editId)?.createdAt || new Date().toISOString())
+                      : new Date().toISOString(),
+  };
+
+  if (editId) {
+    const idx = workouts.findIndex(w => w.id === editId);
+    if (idx > -1) workouts[idx] = entry;
+  } else {
+    workouts.unshift(entry);
+  }
+
+  LS.set(KEYS.workouts, workouts);
+  closeModal('workout-modal');
+  toast(editId ? '✅ Workout updated' : '✅ Workout logged!');
+  if (currentSection === 'workouts') renderWorkouts();
+  if (currentSection === 'dashboard') renderDashboard();
+}
+
+function deleteWorkout(id) {
+  if (!confirm('Delete this workout?')) return;
+  LS.set(KEYS.workouts, LS.get(KEYS.workouts).filter(w => w.id !== id));
+  renderWorkouts();
+  toast('🗑️ Workout deleted');
+}
+
+function renderWorkouts() {
+  const typeFilter  = document.getElementById('workout-filter-type').value;
+  const rangeFilter = parseInt(document.getElementById('workout-filter-range').value) || 0;
+  let workouts = LS.get(KEYS.workouts);
+
+  if (typeFilter)  workouts = workouts.filter(w => w.type === typeFilter);
+  if (rangeFilter) workouts = workouts.filter(w => w.date >= daysAgo(rangeFilter));
+
+  const list = document.getElementById('workout-list');
+  if (workouts.length === 0) {
+    list.innerHTML = `<div class="card"><div class="empty">No workouts found. <a href="#" onclick="openWorkoutModal();return false;" style="color:#1d4ed8;">Log your first workout →</a></div></div>`;
+    return;
+  }
+
+  list.innerHTML = workouts.map(w => `
+    <div class="workout-item mb-1" style="border-left-color:${typeColor(w.type)}">
+      <div style="flex:1">
+        <div class="workout-title">${esc(w.title)}</div>
+        <div class="workout-meta">
+          <span class="badge badge-blue">${esc(w.type)}</span>
+          &nbsp;${w.duration} min
+          ${w.calories ? `&nbsp;• 🔥 ${w.calories} kcal` : ''}
+          &nbsp;• 📅 ${fmtDate(w.date)}
+        </div>
+        ${w.notes ? `<div style="font-size:0.75rem;color:#6b7280;margin-top:0.3rem;">${esc(w.notes)}</div>` : ''}
+      </div>
+      <div class="workout-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openWorkoutModal('${w.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteWorkout('${w.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function typeColor(type) {
+  const map = {
+    Cardio:'#ef4444', Strength:'#1d4ed8', Yoga:'#8b5cf6',
+    HIIT:'#f59e0b', Swimming:'#06b6d4', Cycling:'#10b981',
+    Running:'#ef4444', Walking:'#6b7280', Other:'#9ca3af',
+  };
+  return map[type] || '#9ca3af';
+}
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+/* ──────────────────────────────────────────────────
+   HEART RATE MONITORING
+────────────────────────────────────────────────── */
+let hrSimInterval = null;
+let hrRunning     = false;
+let hrHistory     = [];   // rolling 60-point live feed
+let hrChart       = null;
+
+const HR_ZONES = [
+  { name: 'Resting',  range: '< 60',  min: 0,   max: 59,  cls: 'zone-rest',     color: '#3b82f6' },
+  { name: 'Light',    range: '60–69', min: 60,  max: 69,  cls: 'zone-light',    color: '#10b981' },
+  { name: 'Moderate', range: '70–84', min: 70,  max: 84,  cls: 'zone-moderate', color: '#f59e0b' },
+  { name: 'Intense',  range: '85–99', min: 85,  max: 99,  cls: 'zone-intense',  color: '#ef4444' },
+  { name: 'Max',      range: '100+',  min: 100, max: 999, cls: 'zone-max',      color: '#7c3aed' },
+];
+
+function getZone(bpm) {
+  return HR_ZONES.find(z => bpm >= z.min && bpm <= z.max) || HR_ZONES[0];
+}
+
+function renderHrZoneBars() {
+  const container = document.getElementById('hr-zone-bars');
+  container.innerHTML = HR_ZONES.map(z => `
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:3px;">
+        <span style="font-weight:500;">${z.name}</span>
+        <span style="color:#6b7280;">${z.range} bpm</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar" style="width:100%;background:${z.color};"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateHrDisplay(bpm) {
+  document.getElementById('hr-value').textContent = bpm;
+  const zone = getZone(bpm);
+  const zoneEl = document.getElementById('hr-zone');
+  zoneEl.textContent = zone.name;
+  zoneEl.className = 'hr-zone ' + zone.cls;
+}
+
+function simulateHr() {
+  const last = hrHistory.length > 0 ? hrHistory[hrHistory.length - 1] : 72;
+  // Random walk between 55 and 150
+  const delta = Math.round((Math.random() - 0.44) * 8);
+  const next  = Math.max(55, Math.min(155, last + delta));
+  hrHistory.push(next);
+  if (hrHistory.length > 60) hrHistory.shift();
+  updateHrDisplay(next);
+  updateHrChart();
+}
+
+function toggleHrSimulation() {
+  const btn = document.getElementById('hr-sim-btn');
+  if (hrRunning) {
+    clearInterval(hrSimInterval);
+    hrSimInterval = null;
+    hrRunning = false;
+    btn.textContent = '▶ Start Simulation';
+  } else {
+    hrRunning = true;
+    btn.textContent = '⏹ Stop Simulation';
+    simulateHr();
+    hrSimInterval = setInterval(simulateHr, 1000);
+  }
+}
+
+function logCurrentHeartRate() {
+  const bpm = parseInt(document.getElementById('hr-value').textContent);
+  const logs = LS.get(KEYS.hrLogs);
+  logs.unshift({ id: uid(), bpm, time: new Date().toISOString() });
+  LS.set(KEYS.hrLogs, logs.slice(0, 200));
+  renderHrHistory();
+  toast('❤️ Heart rate logged: ' + bpm + ' bpm');
+}
+
+function initHrChart() {
+  const ctx = document.getElementById('hr-chart').getContext('2d');
+  hrChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: Array(60).fill(''),
+      datasets: [{
+        label: 'BPM',
+        data: Array(60).fill(null),
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+      }],
+    },
+    options: {
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 40, max: 180, grid: { color: '#f3f4f6' } },
+        x: { display: false },
+      },
+    },
+  });
+}
+
+function updateHrChart() {
+  if (!hrChart) return;
+  const data = [...Array(60 - hrHistory.length).fill(null), ...hrHistory];
+  hrChart.data.datasets[0].data = data;
+  hrChart.update('none');
+}
+
+function renderHrHistory() {
+  const logs = LS.get(KEYS.hrLogs);
+  const el = document.getElementById('hr-history');
+  if (logs.length === 0) {
+    el.innerHTML = '<div class="empty">No readings logged yet. Start the simulation and press "Log Reading".</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:0.5rem;">
+      ${logs.slice(0, 20).map(l => {
+        const zone = getZone(l.bpm);
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0.9rem;background:#f9fafb;border-radius:0.5rem;">
+            <div>
+              <span style="font-weight:600;font-size:1.1rem;color:${zone.color};">${l.bpm} bpm</span>
+              <span class="badge ${zone.cls}" style="margin-left:0.5rem;">${zone.name}</span>
+            </div>
+            <span style="font-size:0.75rem;color:#9ca3af;">${new Date(l.time).toLocaleString()}</span>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderHeartRate() {
+  renderHrZoneBars();
+  renderHrHistory();
+  if (!hrChart) initHrChart();
+  updateHrChart();
+}
+
+/* ──────────────────────────────────────────────────
+   GOALS
+────────────────────────────────────────────────── */
+function openGoalModal(id = null) {
+  document.getElementById('goal-edit-id').value = id || '';
+  document.getElementById('goal-modal-title').textContent = id ? 'Edit Goal' : 'Add Goal';
+  if (id) {
+    const g = LS.get(KEYS.goals).find(x => x.id === id);
+    if (g) {
+      document.getElementById('g-title').value   = g.title;
+      document.getElementById('g-type').value    = g.type;
+      document.getElementById('g-unit').value    = g.unit;
+      document.getElementById('g-target').value  = g.target;
+      document.getElementById('g-current').value = g.current;
+      document.getElementById('g-start').value   = g.startDate || '';
+      document.getElementById('g-deadline').value= g.deadline  || '';
+    }
+  } else {
+    ['g-title','g-unit','g-target','g-current'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('g-type').value    = 'custom';
+    document.getElementById('g-start').value   = today();
+    document.getElementById('g-deadline').value= '';
+  }
+  openModal('goal-modal');
+}
+
+function saveGoal() {
+  const title  = document.getElementById('g-title').value.trim();
+  const target = parseFloat(document.getElementById('g-target').value);
+  if (!title)  { toast('⚠️ Please enter a goal title'); return; }
+  if (!target || target <= 0) { toast('⚠️ Please enter a valid target value'); return; }
+
+  const goals  = LS.get(KEYS.goals);
+  const editId = document.getElementById('goal-edit-id').value;
+
+  const entry = {
+    id       : editId || uid(),
+    title,
+    type     : document.getElementById('g-type').value,
+    unit     : document.getElementById('g-unit').value.trim() || 'units',
+    target,
+    current  : parseFloat(document.getElementById('g-current').value) || 0,
+    startDate: document.getElementById('g-start').value || today(),
+    deadline : document.getElementById('g-deadline').value || '',
+    status   : 'active',
+    createdAt: editId ? (goals.find(g => g.id === editId)?.createdAt || new Date().toISOString())
+                      : new Date().toISOString(),
+  };
+
+  // Auto-complete if current >= target
+  if (entry.current >= entry.target) entry.status = 'completed';
+
+  if (editId) {
+    const idx = goals.findIndex(g => g.id === editId);
+    if (idx > -1) goals[idx] = entry;
+  } else {
+    goals.unshift(entry);
+  }
+
+  LS.set(KEYS.goals, goals);
+  closeModal('goal-modal');
+  toast(editId ? '✅ Goal updated' : '✅ Goal added!');
+  renderGoals();
+}
+
+function deleteGoal(id) {
+  if (!confirm('Delete this goal?')) return;
+  LS.set(KEYS.goals, LS.get(KEYS.goals).filter(g => g.id !== id));
+  renderGoals();
+  toast('🗑️ Goal deleted');
+}
+
+function openProgressModal(id) {
+  const g = LS.get(KEYS.goals).find(x => x.id === id);
+  if (!g) return;
+  document.getElementById('gp-id').value      = id;
+  document.getElementById('gp-current').value = g.current;
+  openModal('goal-progress-modal');
+}
+
+function saveGoalProgress() {
+  const id      = document.getElementById('gp-id').value;
+  const current = parseFloat(document.getElementById('gp-current').value);
+  if (isNaN(current)) { toast('⚠️ Enter a valid number'); return; }
+
+  const goals = LS.get(KEYS.goals);
+  const idx   = goals.findIndex(g => g.id === id);
+  if (idx > -1) {
+    goals[idx].current = current;
+    if (current >= goals[idx].target) goals[idx].status = 'completed';
+  }
+  LS.set(KEYS.goals, goals);
+  closeModal('goal-progress-modal');
+  toast('✅ Progress updated');
+  renderGoals();
+}
+
+function goalTypeBadge(type) {
+  const map = {
+    weight_loss:'badge-red', muscle_gain:'badge-blue', cardio:'badge-orange',
+    steps:'badge-green', workouts:'badge-purple', calories:'badge-orange', custom:'badge-blue',
+  };
+  const label = {
+    weight_loss:'Weight Loss', muscle_gain:'Muscle Gain', cardio:'Cardio',
+    steps:'Steps', workouts:'Workouts', calories:'Calories', custom:'Custom',
+  };
+  return `<span class="badge ${map[type]||'badge-blue'}">${label[type]||type}</span>`;
+}
+
+function renderGoals() {
+  const goals = LS.get(KEYS.goals);
+  const el = document.getElementById('goal-list');
+  if (goals.length === 0) {
+    el.innerHTML = `<div class="card"><div class="empty">No goals yet. <a href="#" onclick="openGoalModal();return false;" style="color:#1d4ed8;">Set your first goal →</a></div></div>`;
+    return;
+  }
+
+  const active    = goals.filter(g => g.status === 'active');
+  const completed = goals.filter(g => g.status === 'completed');
+
+  function goalCard(g) {
+    const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+    const daysLeft = g.deadline
+      ? Math.max(0, Math.ceil((new Date(g.deadline) - new Date()) / 86400000))
+      : null;
+    const barColor = g.status === 'completed' ? '#10b981' : pct >= 75 ? '#f59e0b' : '#1d4ed8';
+
+    return `
+      <div class="card mb-1" style="border-left:4px solid ${barColor};">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;">
+          <div>
+            <div style="font-weight:600;font-size:0.95rem;">${esc(g.title)}</div>
+            <div style="margin-top:0.3rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
+              ${goalTypeBadge(g.type)}
+              ${g.status === 'completed' ? '<span class="badge badge-green">✅ Completed</span>' : ''}
+              ${daysLeft !== null ? `<span style="font-size:0.72rem;color:#6b7280;">${daysLeft} days left</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:0.4rem;">
+            ${g.status === 'active' ? `<button class="btn btn-success btn-sm" onclick="openProgressModal('${g.id}')">📈 Update</button>` : ''}
+            <button class="btn btn-ghost btn-sm" onclick="openGoalModal('${g.id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteGoal('${g.id}')">🗑️</button>
+          </div>
+        </div>
+        <div style="margin-top:0.85rem;">
+          <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.3rem;">
+            <span>${g.current} / ${g.target} ${esc(g.unit)}</span>
+            <span style="font-weight:600;">${pct}%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar" style="width:${pct}%;background:${barColor};"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  el.innerHTML = (active.length ? `<h2 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:#374151;">Active (${active.length})</h2>` + active.map(goalCard).join('') : '')
+    + (completed.length ? `<h2 style="font-size:1rem;font-weight:600;margin:1rem 0 0.75rem;color:#374151;">Completed (${completed.length})</h2>` + completed.map(goalCard).join('') : '');
+}
+
+/* ──────────────────────────────────────────────────
+   DASHBOARD
+────────────────────────────────────────────────── */
+let dashChart = null;
+
+function renderDashboard() {
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-US',
+    { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const workouts = LS.get(KEYS.workouts);
+  const todayStr = today();
+  const todayWorkouts = workouts.filter(w => w.date === todayStr);
+  const weekWorkouts  = workouts.filter(w => w.date >= daysAgo(7));
+  const totalCal = todayWorkouts.reduce((s, w) => s + (w.calories || 0), 0);
+  const totalMin = todayWorkouts.reduce((s, w) => s + w.duration, 0);
+  const hrLogs   = LS.get(KEYS.hrLogs);
+  const lastHr   = hrLogs.length ? hrLogs[0].bpm : null;
+  const goals    = LS.get(KEYS.goals).filter(g => g.status === 'active');
+
+  // Stats grid
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card" style="border-left-color:#ef4444;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="stat-label">Heart Rate</div>
+          <div class="stat-value" style="color:#ef4444;">${lastHr ?? '--'}</div>
+          <div class="stat-unit">bpm</div>
+        </div>
+        <span class="stat-icon">❤️</span>
+      </div>
+    </div>
+    <div class="stat-card" style="border-left-color:#f59e0b;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="stat-label">Calories Burned Today</div>
+          <div class="stat-value" style="color:#f59e0b;">${totalCal}</div>
+          <div class="stat-unit">kcal</div>
+        </div>
+        <span class="stat-icon">🔥</span>
+      </div>
+    </div>
+    <div class="stat-card" style="border-left-color:#1d4ed8;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="stat-label">Active Minutes Today</div>
+          <div class="stat-value" style="color:#1d4ed8;">${totalMin}</div>
+          <div class="stat-unit">minutes</div>
+        </div>
+        <span class="stat-icon">⏱️</span>
+      </div>
+    </div>
+    <div class="stat-card" style="border-left-color:#10b981;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="stat-label">Workouts This Week</div>
+          <div class="stat-value" style="color:#10b981;">${weekWorkouts.length}</div>
+          <div class="stat-unit">sessions</div>
+        </div>
+        <span class="stat-icon">💪</span>
+      </div>
+    </div>
+  `;
+
+  // Recent workouts
+  const recentEl = document.getElementById('dash-recent-workouts');
+  const recent = workouts.slice(0, 5);
+  recentEl.innerHTML = recent.length
+    ? recent.map(w => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.65rem 0.85rem;background:#f9fafb;border-radius:0.5rem;margin-bottom:0.5rem;border-left:3px solid ${typeColor(w.type)};">
+          <div>
+            <div style="font-weight:500;font-size:0.875rem;">${esc(w.title)}</div>
+            <div style="font-size:0.72rem;color:#6b7280;">${esc(w.type)} • ${w.duration} min${w.calories ? ' • 🔥 '+w.calories+' kcal' : ''}</div>
+          </div>
+          <span style="font-size:0.72rem;color:#9ca3af;">${fmtDate(w.date)}</span>
+        </div>
+      `).join('')
+    : `<div class="empty">No workouts yet. <a href="#" onclick="showSection('workouts');openWorkoutModal();return false;" style="color:#1d4ed8;">Log one →</a></div>`;
+
+  // Active goals
+  const goalsEl = document.getElementById('dash-active-goals');
+  goalsEl.innerHTML = goals.length
+    ? goals.slice(0, 3).map(g => {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return `
+          <div style="margin-bottom:0.85rem;">
+            <div style="display:flex;justify-content:space-between;font-size:0.875rem;margin-bottom:0.2rem;">
+              <span style="font-weight:500;">${esc(g.title)}</span>
+              <span style="color:#6b7280;">${pct}%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar" style="width:${pct}%;background:${pct>=100?'#10b981':'#1d4ed8'};"></div>
+            </div>
+            <div style="font-size:0.72rem;color:#9ca3af;margin-top:0.2rem;">${g.current} / ${g.target} ${esc(g.unit)}</div>
+          </div>
+        `;
+      }).join('')
+    : `<div class="empty">No active goals. <a href="#" onclick="showSection('goals');openGoalModal();return false;" style="color:#1d4ed8;">Set one →</a></div>`;
+
+  // Weekly chart
+  const labels = [];
+  const calData = [];
+  const durData = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = daysAgo(i);
+    const day = workouts.filter(w => w.date === d);
+    labels.push(new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }));
+    calData.push(day.reduce((s, w) => s + (w.calories || 0), 0));
+    durData.push(day.reduce((s, w) => s + w.duration, 0));
+  }
+
+  const ctx = document.getElementById('dash-chart').getContext('2d');
+  if (dashChart) dashChart.destroy();
+  dashChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Calories (kcal)', data: calData, backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 4 },
+        { label: 'Duration (min)',  data: durData,  backgroundColor: 'rgba(29,78,216,0.7)', borderRadius: 4 },
+      ],
+    },
+    options: {
+      plugins: { legend: { position: 'top' } },
+      scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } } },
+      responsive: true,
+    },
+  });
+}
+
+/* ──────────────────────────────────────────────────
+   STATISTICS
+────────────────────────────────────────────────── */
+let statsCharts = {};
+
+function renderStats() {
+  const workouts = LS.get(KEYS.workouts);
+  const hrLogs   = LS.get(KEYS.hrLogs);
+
+  // Summary
+  const allCal = workouts.reduce((s, w) => s + (w.calories || 0), 0);
+  const allDur = workouts.reduce((s, w) => s + w.duration, 0);
+  const avgDur = workouts.length ? Math.round(allDur / workouts.length) : 0;
+  const lastHr = hrLogs.length ? hrLogs[0].bpm : '--';
+
+  document.getElementById('stats-summary').innerHTML = `
+    <div class="stat-card" style="border-left-color:#1d4ed8;">
+      <div class="stat-label">Total Workouts</div>
+      <div class="stat-value">${workouts.length}</div>
+      <div class="stat-unit">all time</div>
+    </div>
+    <div class="stat-card" style="border-left-color:#f59e0b;">
+      <div class="stat-label">Total Calories</div>
+      <div class="stat-value">${allCal.toLocaleString()}</div>
+      <div class="stat-unit">kcal burned</div>
+    </div>
+    <div class="stat-card" style="border-left-color:#10b981;">
+      <div class="stat-label">Total Active Time</div>
+      <div class="stat-value">${allDur}</div>
+      <div class="stat-unit">minutes</div>
+    </div>
+    <div class="stat-card" style="border-left-color:#ef4444;">
+      <div class="stat-label">Avg Duration</div>
+      <div class="stat-value">${avgDur}</div>
+      <div class="stat-unit">min/session</div>
+    </div>
+  `;
+
+  // Last 7 days calorie + duration charts
+  const labels7 = [], calData7 = [], durData7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = daysAgo(i);
+    const day = workouts.filter(w => w.date === d);
+    labels7.push(new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month:'short', day:'numeric' }));
+    calData7.push(day.reduce((s, w) => s + (w.calories || 0), 0));
+    durData7.push(day.reduce((s, w) => s + w.duration, 0));
+  }
+
+  ['stats-cal-chart', 'stats-dur-chart', 'stats-type-chart', 'stats-hr-chart'].forEach(id => {
+    if (statsCharts[id]) { statsCharts[id].destroy(); delete statsCharts[id]; }
+  });
+
+  statsCharts['stats-cal-chart'] = new Chart(
+    document.getElementById('stats-cal-chart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: labels7, datasets: [{ label: 'Calories (kcal)', data: calData7, backgroundColor: 'rgba(239,68,68,0.72)', borderRadius: 4 }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } }, responsive: true },
+    }
+  );
+
+  statsCharts['stats-dur-chart'] = new Chart(
+    document.getElementById('stats-dur-chart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: labels7, datasets: [{ label: 'Duration (min)', data: durData7, backgroundColor: 'rgba(29,78,216,0.72)', borderRadius: 4 }] },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } }, responsive: true },
+    }
+  );
+
+  // Workout type pie / doughnut
+  const typeCounts = {};
+  workouts.forEach(w => { typeCounts[w.type] = (typeCounts[w.type] || 0) + 1; });
+  const typeLabels = Object.keys(typeCounts);
+  const typeData   = typeLabels.map(t => typeCounts[t]);
+  const typeColors = typeLabels.map(t => typeColor(t) + 'cc');
+
+  if (typeLabels.length) {
+    statsCharts['stats-type-chart'] = new Chart(
+      document.getElementById('stats-type-chart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: typeLabels, datasets: [{ data: typeData, backgroundColor: typeColors, borderWidth: 2 }] },
+        options: { plugins: { legend: { position: 'bottom' } }, responsive: true },
+      }
+    );
+  } else {
+    document.getElementById('stats-type-chart').parentElement.innerHTML +=
+      '<div class="empty">Log workouts to see type breakdown</div>';
+  }
+
+  // Heart rate trend (line chart)
+  const recentHr = hrLogs.slice(0, 14).reverse();
+  if (recentHr.length) {
+    statsCharts['stats-hr-chart'] = new Chart(
+      document.getElementById('stats-hr-chart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: recentHr.map(l => new Date(l.time).toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' })),
+          datasets: [{
+            label: 'BPM',
+            data: recentHr.map(l => l.bpm),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239,68,68,0.1)',
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 4,
+          }],
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: { y: { min: 40, max: 180, grid: { color: '#f3f4f6' } } },
+          responsive: true,
+        },
+      }
+    );
+  } else {
+    document.getElementById('stats-hr-chart').parentElement.innerHTML +=
+      '<div class="empty">Log heart rate readings to see trend</div>';
+  }
+}
+
+/* ──────────────────────────────────────────────────
+   SEED SAMPLE DATA (first visit only)
+────────────────────────────────────────────────── */
+function seedSampleData() {
+  if (LS.get(KEYS.workouts).length > 0) return; // already has data
+
+  const types   = ['Running','Strength','Cardio','Yoga','Cycling','HIIT'];
+  const titles  = ['Morning Run','Leg Day','Treadmill Intervals','Yoga Flow',
+                   'Bike Ride','HIIT Session','Full Body Lift','Evening Jog'];
+  const workouts = [];
+  for (let i = 13; i >= 0; i--) {
+    if (Math.random() < 0.55) {
+      const type = types[Math.floor(Math.random() * types.length)];
+      const dur  = 20 + Math.floor(Math.random() * 55);
+      workouts.push({
+        id       : uid(),
+        title    : titles[Math.floor(Math.random() * titles.length)],
+        type,
+        duration : dur,
+        calories : Math.floor(dur * (3.5 + Math.random() * 4)),
+        date     : daysAgo(i),
+        notes    : '',
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+  LS.set(KEYS.workouts, workouts);
+
+  // Sample goals
+  LS.set(KEYS.goals, [
+    { id: uid(), title: 'Run 100km this month', type: 'cardio',   unit: 'km',       target: 100, current: 38,  status: 'active',    startDate: daysAgo(20), deadline: daysAgo(-10), createdAt: new Date().toISOString() },
+    { id: uid(), title: 'Lose 5kg',             type: 'weight_loss', unit: 'kg',    target: 5,   current: 2.5, status: 'active',    startDate: daysAgo(30), deadline: daysAgo(-30), createdAt: new Date().toISOString() },
+    { id: uid(), title: 'Complete 20 workouts', type: 'workouts', unit: 'workouts', target: 20,  current: 20,  status: 'completed', startDate: daysAgo(60), deadline: daysAgo(-0),  createdAt: new Date().toISOString() },
+  ]);
+
+  // Sample HR logs
+  const hrLogs = [];
+  for (let i = 9; i >= 0; i--) {
+    hrLogs.push({ id: uid(), bpm: 60 + Math.floor(Math.random() * 60), time: new Date(Date.now() - i * 3600000).toISOString() });
+  }
+  LS.set(KEYS.hrLogs, hrLogs);
+}
+
+/* ──────────────────────────────────────────────────
+   INIT
+────────────────────────────────────────────────── */
+seedSampleData();
+renderDashboard();
+</script>
+</body>
+</html>
